@@ -1,9 +1,10 @@
 // Shared server helpers. The browser only ever holds a session on the PORTAL Supabase project (auth only);
 // every data read goes through these functions, which call the MAIN project's portal.* RPCs with the service role
 // and always pass the caller's own account id.
-const PORTAL_URL = (process.env.PORTAL_SUPABASE_URL || "").trim();
+const clean = (u) => String(u || "").trim().replace(/\/(rest|auth)\/v1\/?$/i, "").replace(/\/+$/, "");
+const PORTAL_URL = clean(process.env.PORTAL_SUPABASE_URL);
 const PORTAL_ANON = (process.env.PORTAL_SUPABASE_ANON_KEY || "").trim();
-const MAIN_URL = (process.env.MAIN_SUPABASE_URL || "").trim() || "https://tciwjnbnskphpzyoczfb.supabase.co";
+const MAIN_URL = clean(process.env.MAIN_SUPABASE_URL) || "https://tciwjnbnskphpzyoczfb.supabase.co";
 const MAIN_SERVICE = (process.env.MAIN_SUPABASE_SERVICE_ROLE_KEY || "").trim();
 
 export function envProblem() {

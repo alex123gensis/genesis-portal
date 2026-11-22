@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { auth, configured } from "./portalAuth.js";
+import { auth, configured, configProblem } from "./portalAuth.js";
 import { api } from "./api.js";
 import { DARK, ORANGE, MUTED, CARD, INPUT, PRIMARY, BTN, Field, Msg } from "./ui.jsx";
 import ShipmentsView from "./components/ShipmentsView.jsx";
@@ -19,7 +19,7 @@ function Login() {
   const go = async (e) => {
     e.preventDefault(); setBusy(true); setErr(null);
     const { error } = await auth.auth.signInWithPassword({ email: email.trim(), password: pw });
-    if (error) { setErr(/invalid/i.test(error.message) ? "E-mail or password is not right." : error.message); setBusy(false); }
+    if (error) { setErr(/invalid login credentials/i.test(error.message) ? "E-mail or password is not right." : `Sign-in failed: ${error.message}`); setBusy(false); }
   };
   return (
     <div style={{ minHeight: "100vh", display: "grid", placeItems: "center", padding: 16, background: `linear-gradient(160deg, ${DARK} 0%, #3a3230 60%, #5a4a3a 100%)` }}>
@@ -60,8 +60,8 @@ export default function App() {
 
   const signOut = () => auth.auth.signOut();
 
-  if (!configured) return <div style={{ padding: 40, fontFamily: "monospace" }}>Portal is not configured: set VITE_PORTAL_SUPABASE_URL and VITE_PORTAL_SUPABASE_ANON_KEY and rebuild.</div>;
-  if (session === undefined) return null;
+  if (!configured || !auth) return <div style={{ padding: 40, fontFamily: "monospace", whiteSpace: "pre-wrap" }}>Portal is not configured: {configProblem}</div>;
+  if (session === undefined) return <div style={{ padding: 40, color: MUTED }}>Loading…</div>;
   if (!session) return <Login />;
 
   const account = me && me.account;
