@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../api.js";
+import BillOfLadingView from "./BillOfLadingView.jsx";
+import DocumentsView from "./DocumentsView.jsx";
 import { CARD, INPUT, BTN, MUTED, ORANGE, GREEN, AMBER, BLUE, DARK, LINE, STAGE, STAGES, Pill, Tile, Msg, Empty, fmtD, downloadCsv } from "../ui.jsx";
 
 const ACTIVE = new Set(["PENDING", "ALLOCATED", "LOADING", "GATED_IN", "ON_WATER", "ARRIVED"]);
@@ -22,8 +24,8 @@ function Progress({ stage, small }) {
   );
 }
 
-function Detail({ job, onBack }) {
-  const [tanks, setTanks] = useState(null); const [err, setErr] = useState(null);
+function Detail({ job, account, onBack }) {
+  const [tanks, setTanks] = useState(null); const [err, setErr] = useState(null); const [sub, setSub] = useState("tracking");
   useEffect(() => { let on = true; api(`/api/tanks?job=${encodeURIComponent(job.job_number)}`).then((r) => on && setTanks(r.tanks)).catch((e) => on && setErr(e.message)); return () => { on = false; }; }, [job.job_number]);
   const st = STAGE[job.stage] || [job.stage, MUTED];
   const facts = [["Booking", job.job_number], ["Route", `${job.pol || "—"} → ${job.pod || "—"}`], ["Product", job.product || "—"], ["Tanks", `${job.tank_count} of ${job.tanks_required}`],
@@ -47,7 +49,13 @@ function Detail({ job, onBack }) {
             <div key={k}><div style={{ fontSize: 10, fontWeight: 700, color: MUTED, textTransform: "uppercase", letterSpacing: "0.05em" }}>{k}</div><div style={{ fontSize: 14, fontWeight: 600 }}>{typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) ? fmtD(v) : v || "—"}</div></div>))}
         </div>
       </div>
-      <div style={CARD}>
+      <div style={{ display: "flex", gap: 6, marginBottom: 12, flexWrap: "wrap" }}>
+        {[["tracking", "Tracking"], ["bl", "Bill of lading"], ["documents", "Documents"]].map(([k, l]) => (
+          <button key={k} onClick={() => setSub(k)} style={{ ...BTN, background: sub === k ? DARK : "#fff", color: sub === k ? "#fff" : DARK }}>{l}</button>))}
+      </div>
+      {sub === "bl" && <BillOfLadingView job={job} account={account} />}
+      {sub === "documents" && <DocumentsView job={job} />}
+      {sub === "tracking" && <div style={CARD}>
         <div style={{ fontWeight: 800, marginBottom: 8 }}>Tanks on this booking</div>
         {err && <Msg text={err} />}
         {!tanks && !err && <div style={{ color: MUTED, fontSize: 13 }}>Loading…</div>}
@@ -67,7 +75,7 @@ function Detail({ job, onBack }) {
             </table>
           </div>
         )}
-      </div>
+      </div>}
     </div>
   );
 }
@@ -88,7 +96,7 @@ export default function ShipmentsView({ account }) {
     ["Booking", "Status", "POL", "POD", "Product", "Tanks", "Depot out", "Gated in", "Sailed", "ETA", "Arrived", "Returned", "Vessel", "Voyage", "Carrier", "B/L"],
     list.map((r) => [r.job_number, (STAGE[r.stage] || [r.stage])[0], r.pol, r.pod, r.product, r.tank_count, r.depot_out, r.gate_in, r.sailed, r.eta, r.arrived, r.returned_count, r.vessel, r.voyage, r.carrier, r.bl_no]));
 
-  if (open) return <Detail job={open} onBack={() => setOpen(null)} />;
+  if (open) return <Detail job={open} account={account} onBack={() => setOpen(null)} />;
   const tile = (stage, label, color) => <Tile label={label} value={counts[stage] || 0} color={color} on={stageF === stage} onClick={() => { setStageF(stageF === stage ? null : stage); setScope(stage === "RETURNED" ? "ALL" : scope); }} />;
   return (
     <div>
