@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "../api.js";
+import SailingsUpload from "./SailingsUpload.jsx";
 import { CARD, INPUT, BTN, PRIMARY, DANGER, MUTED, ORANGE, GREEN, RED, AMBER, LINE, Field, Pill, Msg, Empty, fmtD, fmtDT, downloadCsv } from "../ui.jsx";
 
 const DG = ["Not stated", "Accepted", "Restricted", "Not accepted"];
@@ -58,7 +59,7 @@ function Editor({ value, ports, onSaved, onClose }) {
 
 export default function SailingsView({ account }) {
   const [data, setData] = useState(null); const [err, setErr] = useState(null);
-  const [pol, setPol] = useState(""); const [pod, setPod] = useState(""); const [edit, setEdit] = useState(null); const [msg, setMsg] = useState(null);
+  const [pol, setPol] = useState(""); const [pod, setPod] = useState(""); const [edit, setEdit] = useState(null); const [msg, setMsg] = useState(null); const [upload, setUpload] = useState(false);
   const load = useCallback(async () => { try { setData(await api("/api/sailings")); setErr(null); } catch (e) { setErr(e.message); } }, []);
   useEffect(() => { load(); }, [load]);
   const rows = (data && data.sailings) || [];
@@ -78,14 +79,16 @@ export default function SailingsView({ account }) {
         <div style={{ fontSize: 12, color: MUTED }}>{list.length} sailing{list.length === 1 ? "" : "s"} · next 14 days and beyond</div>
         <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
           <button style={BTN} onClick={csv} disabled={!list.length}>Download CSV</button>
-          {canEdit && !edit && <button style={PRIMARY} onClick={() => setEdit({})}>+ Add sailing</button>}
+          {canEdit && !edit && !upload && <button style={BTN} onClick={() => setUpload(true)}>Upload Excel</button>}
+          {canEdit && !edit && !upload && <button style={PRIMARY} onClick={() => setEdit({})}>+ Add sailing</button>}
         </div>
       </div>
       <Msg text={msg} ok onClose={() => setMsg(null)} />
       {err && <Msg text={err} />}
+      {upload && <SailingsUpload onDone={async (n) => { setMsg(`${n} sailing${n === 1 ? "" : "s"} saved - customers can see them now.`); await load(); }} onClose={() => setUpload(false)} />}
       {edit && <Editor value={edit} ports={ports} onSaved={async () => { setEdit(null); setMsg("Sailing saved - customers can see it now."); await load(); }} onClose={() => setEdit(null)} />}
       {!data && !err && <div style={{ color: MUTED }}>Loading schedule…</div>}
-      {data && !list.length && <div style={CARD}><Empty text={canEdit ? "No sailings yet. Add the first vessel option with the button above." : "No sailings published for this route at the moment."} /></div>}
+      {data && !list.length && <div style={CARD}><Empty text={canEdit ? "No sailings yet. Add a vessel option with + Add sailing, or upload many at once with Upload Excel (download the template first)." : "No sailings published for this route at the moment."} /></div>}
       {data && list.length > 0 && (
         <div style={{ ...CARD, padding: 0, overflowX: "auto" }}>
           <table style={{ minWidth: 1100 }}>

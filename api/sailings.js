@@ -9,7 +9,17 @@ export default guard(async (req, res, who) => {
   }
   if (!acc.can_edit_sailings) return send(res, 403, { error: "Your account can view sailings but not enter them" });
   if (req.method === "POST") {
-    const row = req.body && typeof req.body === "object" ? req.body.row || req.body : {};
+    const body = req.body && typeof req.body === "object" ? req.body : {};
+    if (Array.isArray(body.rows)) {
+      // bulk upload from Excel: each row saved on its own so one bad row does not block the rest
+      const results = [];
+      for (const row of body.rows.slice(0, 500)) {
+        try { results.push({ ok: true, id: await rpc("save_sailing", { p_account: acc.id, p_email: who.email, p_row: row }) }); }
+        catch (e) { results.push({ ok: false, error: e.message || String(e) }); }
+      }
+      return send(res, 200, { results, saved: results.filter((r) => r.ok).length, failed: results.filter((r) => !r.ok).length });
+    }
+    const row = body.row || body;
     const id = await rpc("save_sailing", { p_account: acc.id, p_email: who.email, p_row: row });
     return send(res, 200, { id });
   }
