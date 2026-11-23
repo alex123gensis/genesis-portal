@@ -87,6 +87,7 @@ export default function App() {
               {isAgent && <button className={view === "region" ? "on" : ""} onClick={() => setTab("region")}>Tanks in my region</button>}
               {isAgent && <button className={view === "sailings" ? "on" : ""} onClick={() => setTab("sailings")}>Sailing schedule</button>}
               <button className={view === "shipments" ? "on" : ""} onClick={() => setTab("shipments")}>{isAgent ? "Bookings" : "My shipments"}</button>
+              {!isAgent && <button className={view === "sailings" ? "on" : ""} onClick={() => setTab("sailings")}>Sailing schedule</button>}
               <button className={view === "requests" ? "on" : ""} onClick={() => setTab("requests")}>Booking requests</button>
               <button className={view === "account" ? "on" : ""} onClick={() => setTab("account")}>Account</button>
             </nav>
@@ -99,7 +100,7 @@ export default function App() {
         {me && !account && <div style={{ ...CARD, maxWidth: 520, margin: "40px auto" }}><div style={{ fontWeight: 800, marginBottom: 6 }}>No company linked to this login</div><div style={{ fontSize: 13, color: MUTED }}>Your e-mail is not linked to a customer account yet. Please contact your Genesis representative.</div><button style={{ ...BTN, marginTop: 12 }} onClick={signOut}>Sign out</button></div>}
         {account && forced && <ChangePassword forced onDone={loadMe} />}
         {account && !forced && view === "shipments" && <ShipmentsView account={account} />}
-        {account && !forced && view === "sailings" && isAgent && <SailingsView account={account} />}
+        {account && !forced && view === "sailings" && <SailingsView account={account} />}
         {account && !forced && view === "region" && isAgent && <RegionView account={account} />}
         {account && !forced && view === "requests" && <BookingRequestsView account={account} />}
         {account && !forced && view === "account" && <AccountView me={me} onChanged={loadMe} />}

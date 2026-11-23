@@ -5,11 +5,19 @@ import { CARD, INPUT, BTN, PRIMARY, DANGER, MUTED, GREEN, RED, AMBER, BLUE, DARK
 import PortSelect, { usePorts } from "./PortSelect.jsx";
 
 const STATUS = { NEW: ["Sent to Genesis", BLUE], IN_REVIEW: ["Being reviewed", AMBER], QUOTED: ["Quoted", GREEN], CONFIRMED: ["Confirmed - job opened", DARK], DECLINED: ["Declined", RED], CANCELLED: ["Cancelled", MUTED] };
-const EMPTY = { pol: "", pod: "", product: "", unNo: "", imoClass: "", tanks: 1, cargoReady: "", preferredSailing: "", terms: "", remarks: "", onBehalfOf: "" };
+const EMPTY = { pol: "", pod: "", product: "", unNo: "", imoClass: "", tanks: 1, cargoReady: "", preferredSailing: "", terms: "", remarks: "", onBehalfOf: "", msdsUrl: "", msdsName: "" };
+const readAsDataUrl = (f) => new Promise((ok, no) => { const r = new FileReader(); r.onload = () => ok(r.result); r.onerror = no; r.readAsDataURL(f); });
 
 function Form({ account, ports, onSaved, onClose }) {
-  const [d, setD] = useState(EMPTY); const [busy, setBusy] = useState(false); const [err, setErr] = useState(null);
+  const [d, setD] = useState(EMPTY); const [busy, setBusy] = useState(false); const [err, setErr] = useState(null); const [uploading, setUploading] = useState(false);
   const set = (k) => (e) => setD({ ...d, [k]: e.target.value });
+  const onMsds = async (e) => {
+    const f = e.target.files && e.target.files[0]; e.target.value = ""; if (!f) return;
+    if (f.size > 4 * 1024 * 1024) { setErr("The MSDS must be under 4 MB."); return; }
+    setUploading(true); setErr(null);
+    try { const r = await api("/api/msds", { method: "POST", body: { name: f.name, data: await readAsDataUrl(f) } }); setD((p) => ({ ...p, msdsUrl: r.url, msdsName: r.name })); } catch (x) { setErr(`MSDS upload failed: ${x.message}`); }
+    setUploading(false);
+  };
   const save = async (e) => {
     e.preventDefault(); setBusy(true); setErr(null);
     try { await api("/api/requests", { method: "POST", body: { row: d } }); await onSaved(); } catch (x) { setErr(x.message); setBusy(false); }
@@ -29,6 +37,12 @@ function Form({ account, ports, onSaved, onClose }) {
         <Field label="IMO class"><input style={INPUT} value={d.imoClass} onChange={set("imoClass")} placeholder="3" /></Field>
         <Field label="Preferred sailing / vessel"><input style={INPUT} value={d.preferredSailing} onChange={set("preferredSailing")} placeholder="e.g. first week of December" /></Field>
         <Field label="Terms"><select style={INPUT} value={d.terms} onChange={set("terms")}><option value="">—</option>{["PIER TO PIER", "DOOR TO PIER", "PIER TO DOOR", "DOOR TO DOOR", "LEASE"].map((t) => <option key={t}>{t}</option>)}</select></Field>
+        <Field label="MSDS (PDF)" hint="Safety data sheet of the product - needed for DG cargo">
+          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+            <label style={{ ...BTN, display: "inline-block", cursor: "pointer" }}>{uploading ? "Uploading…" : d.msdsUrl ? "Replace" : "Choose file"}<input type="file" accept=".pdf,image/*" style={{ display: "none" }} onChange={onMsds} /></label>
+            {d.msdsUrl ? <a href={d.msdsUrl} target="_blank" rel="noreferrer" style={{ fontSize: 12 }}>{d.msdsName}</a> : <span style={{ fontSize: 12, color: MUTED }}>none</span>}
+          </div>
+        </Field>
         <Field label="Remarks" span><textarea style={{ ...INPUT, minHeight: 60 }} value={d.remarks} onChange={set("remarks")} placeholder="Heating, special handling, delivery address, anything Genesis should know" /></Field>
       </div>
       <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
@@ -65,7 +79,7 @@ export default function BookingRequestsView({ account }) {
                 <td>{fmtDT(r.created_at)}<div style={{ fontSize: 11, color: MUTED }}>{r.requested_by}</div></td>
                 <td><Pill text={st[0]} color={st[1]} /></td>
                 <td className="wrap">{r.pol} → {r.pod}</td>
-                <td className="wrap">{[r.product, r.un_no, r.imo_class].filter(Boolean).join(" · ") || "—"}</td>
+                <td className="wrap">{[r.product, r.un_no, r.imo_class].filter(Boolean).join(" · ") || "—"}{r.msds_url && <div><a href={r.msds_url} target="_blank" rel="noreferrer" style={{ fontSize: 11 }}>MSDS</a></div>}</td>
                 <td style={{ textAlign: "right" }}>{r.tanks}</td><td>{fmtD(r.cargo_ready)}</td>
                 {account.kind === "AGENT" && <td className="wrap">{r.on_behalf_of || "—"}</td>}
                 <td className="wrap" style={{ fontSize: 12 }}>{r.genesis_note || "—"}</td>
