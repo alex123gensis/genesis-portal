@@ -104,10 +104,11 @@ export default function BillOfLadingView({ job, account }) {
         <Msg text={msg} ok={msg && !/^Error/.test(msg)} onClose={() => setMsg(null)} />
         {data.noQuote && <div style={{ fontSize: 13 }}>Genesis has not linked a quote to this booking yet, so a bill of lading cannot be drafted here. Please ask your Genesis contact.</div>}
         {data.genesisDraft && <div style={{ fontSize: 13, color: MUTED }}>Genesis is preparing the bill of lading for this booking. It will appear here once issued.</div>}
-        {data.agentDrafting && <div style={{ fontSize: 13, color: MUTED }}>The agent is drafting the bill of lading. You will be asked to approve it once it is submitted.</div>}
-        {!data.noQuote && !data.genesisDraft && !data.agentDrafting && (isAgent
+        {data.agentDrafting && <div style={{ fontSize: 13, color: MUTED }}>{isAgent ? "The bill of lading is being prepared by the agent at the port of loading. It will appear here once issued." : "The agent is drafting the bill of lading. You will be asked to approve it once it is submitted."}</div>}
+        {!data.noQuote && !data.genesisDraft && !data.agentDrafting && (isAgent && data.canEdit
           ? <><div style={{ fontSize: 13, marginBottom: 10 }}>No bill of lading yet for this booking. The draft starts pre-filled from the quote and the {data.tanks.length} allocated tank{data.tanks.length === 1 ? "" : "s"}.</div><button style={PRIMARY} disabled={busy} onClick={start}>Start draft B/L</button></>
           : <div style={{ fontSize: 13, color: MUTED }}>No bill of lading has been drafted for this booking yet.</div>)}
+        {!data.noQuote && !data.genesisDraft && !data.agentDrafting && isAgent && !data.canEdit && <div style={{ fontSize: 13, color: MUTED }}>The bill of lading is drafted by the agent at the port of loading. It will appear here once issued.</div>}
       </div>
     );
   }

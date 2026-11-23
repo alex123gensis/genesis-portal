@@ -2,8 +2,11 @@ import { useEffect, useMemo, useState } from "react";
 import { api } from "../api.js";
 import BillOfLadingView from "./BillOfLadingView.jsx";
 import DocumentsView from "./DocumentsView.jsx";
+import TermsCard from "./TermsCard.jsx";
 import { CARD, INPUT, BTN, MUTED, ORANGE, GREEN, AMBER, BLUE, DARK, LINE, STAGE, STAGES, Pill, Tile, Msg, Empty, fmtD, downloadCsv } from "../ui.jsx";
 
+const ROLE_LABEL = { CUSTOMER: ["Customer", GREEN], POL_AGENT: ["POL agent", BLUE], POD_AGENT: ["POD agent", ORANGE] };
+const roleTags = (r) => String(r || "").split(",").filter(Boolean);
 const ACTIVE = new Set(["PENDING", "ALLOCATED", "LOADING", "GATED_IN", "ON_WATER", "ARRIVED"]);
 
 function Progress({ stage, small }) {
@@ -50,11 +53,12 @@ function Detail({ job, account, onBack }) {
         </div>
       </div>
       <div style={{ display: "flex", gap: 6, marginBottom: 12, flexWrap: "wrap" }}>
-        {[["tracking", "Tracking"], ["bl", "Bill of lading"], ["documents", "Documents"]].map(([k, l]) => (
+        {[["tracking", "Tracking"], ["bl", "Bill of lading"], ["terms", "Free time & detention"], ["documents", "Documents"]].map(([k, l]) => (
           <button key={k} onClick={() => setSub(k)} style={{ ...BTN, background: sub === k ? DARK : "#fff", color: sub === k ? "#fff" : DARK }}>{l}</button>))}
       </div>
       {sub === "bl" && <BillOfLadingView job={job} account={account} />}
       {sub === "documents" && <DocumentsView job={job} />}
+      {sub === "terms" && <TermsCard job={job} />}
       {sub === "tracking" && <div style={CARD}>
         <div style={{ fontWeight: 800, marginBottom: 8 }}>Tanks on this booking</div>
         {err && <Msg text={err} />}
@@ -122,7 +126,7 @@ export default function ShipmentsView({ account }) {
             <thead><tr><th>Booking</th><th>Status</th><th>Progress</th><th>Route</th><th className="hide-sm">Product</th><th style={{ textAlign: "right" }}>Tanks</th><th>Depot out</th><th>Sailed</th><th>ETA / arrived</th><th>Vessel</th><th className="hide-sm">B/L</th></tr></thead>
             <tbody>{list.map((r) => (
               <tr key={r.job_number} className="row" onClick={() => setOpen(r)}>
-                <td style={{ fontFamily: "monospace", fontWeight: 700 }}>{r.job_number}{account.kind === "AGENT" && r.customer ? <div style={{ fontSize: 11, color: MUTED, fontFamily: "Inter, sans-serif", fontWeight: 400 }}>{r.customer}</div> : null}</td>
+                <td style={{ fontFamily: "monospace", fontWeight: 700 }}>{r.job_number}{account.kind === "AGENT" && r.customer ? <div style={{ fontSize: 11, color: MUTED, fontFamily: "Inter, sans-serif", fontWeight: 400 }}>{r.customer}</div> : null}{account.kind === "AGENT" && <div style={{ marginTop: 3, display: "flex", gap: 4 }}>{roleTags(r.roles).map((t) => <Pill key={t} text={(ROLE_LABEL[t] || [t])[0]} color={(ROLE_LABEL[t] || [t, MUTED])[1]} />)}</div>}</td>
                 <td><Pill stage={r.stage} /></td>
                 <td><Progress stage={r.stage} small /></td>
                 <td className="wrap">{r.pol} → {r.pod}</td><td className="hide-sm wrap">{r.product || "—"}</td>

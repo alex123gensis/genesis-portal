@@ -31,7 +31,7 @@ export default function DocumentsView({ job }) {
   const jobForInvoice = { job_number: job.job_number, tanks_required: job.tanks_required, snapshot: { customer: job.customer, quoteNumber: "", pol: job.pol, pod: job.pod, product: job.product, type: job.job_type } };
   const invHtml = (inv) => buildSalesInvoiceHTML({ invoice_number: inv.number, invoice_date: inv.date, due_date: inv.dueDate, currency: inv.currency, lines: inv.lines, vat_pct: inv.vatPct, status: inv.status,
     billing_party: inv.billingParty, billing_address: inv.billingAddress, billing_trn: inv.billingTrn, payment_terms: inv.paymentTerms, remarks: inv.remarks }, jobForInvoice, (d.tanks || []).map((t) => t.tank));
-  const nothing = !d.bl && !d.invoices.length && !d.invoiceFiles.length && !d.tanks.some((t) => t.files.length || t.cleaningCertUrl) && !d.msdsUrl;
+  const nothing = !d.bl && !(d.invoices || []).length && !(d.invoiceFiles || []).length && !d.tanks.some((t) => t.files.length || t.cleaningCertUrl) && !d.msdsUrl;
 
   return (
     <div style={{ display: "grid", gap: 12 }}>
@@ -41,7 +41,7 @@ export default function DocumentsView({ job }) {
           right={<>{bl && bl.bl && <button style={BTN} onClick={printBl}>Print</button>}{bl && bl.bl && <button style={BTN} onClick={dlBl}>Download</button>}{d.bl.agentBlUrl && <Link href={d.bl.agentBlUrl}>Carrier B/L file</Link>}</>} />
           : <div style={{ fontSize: 13, color: MUTED }}>Not issued yet - see the Bill of lading tab for the draft status.</div>}
       </div>
-      <div style={CARD}>
+      {d.kind !== "AGENT" && <div style={CARD}>
         <div style={{ fontWeight: 800, marginBottom: 4 }}>Invoices</div>
         {!d.invoices.length && !d.invoiceFiles.length && <div style={{ fontSize: 13, color: MUTED }}>No invoices issued for this booking yet.</div>}
         {d.invoices.map((inv) => {
@@ -52,7 +52,7 @@ export default function DocumentsView({ job }) {
             right={<><button style={BTN} onClick={() => openForPrint(invHtml(inv), inv.number)}>Print</button><button style={BTN} onClick={() => downloadHtml(invHtml(inv), inv.number)}>Download</button></>} />;
         })}
         {d.invoiceFiles.map((f) => <Row key={f.id} title={`${f.number || "Invoice"} (${f.component.toLowerCase().replace(/_/g, " ")})`} sub={`${fmtD(f.date)}${f.amount ? ` · ${money(f.amount, f.currency)}` : ""}`} right={<Link href={f.fileUrl}>Download {f.fileName ? "" : "file"}</Link>} />)}
-      </div>
+      </div>}
       <div style={CARD}>
         <div style={{ fontWeight: 800, marginBottom: 4 }}>Tank certificates</div>
         {!d.tanks.length && <div style={{ fontSize: 13, color: MUTED }}>No tanks on this booking yet.</div>}
