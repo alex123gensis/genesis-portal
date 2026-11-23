@@ -5,7 +5,7 @@ import { CARD, INPUT, BTN, PRIMARY, DANGER, MUTED, GREEN, RED, AMBER, BLUE, DARK
 import PortSelect, { usePorts } from "./PortSelect.jsx";
 
 const STATUS = { NEW: ["Sent to Genesis", BLUE], IN_REVIEW: ["Being reviewed", AMBER], QUOTED: ["Quoted", GREEN], CONFIRMED: ["Confirmed - job opened", DARK], DECLINED: ["Declined", RED], CANCELLED: ["Cancelled", MUTED] };
-const EMPTY = { pol: "", pod: "", product: "", unNo: "", imoClass: "", tanks: 1, cargoReady: "", preferredSailing: "", terms: "", remarks: "", onBehalfOf: "", msdsUrl: "", msdsName: "" };
+const EMPTY = { pol: "", pod: "", product: "", unNo: "", imoClass: "", tanks: 1, cargoReady: "", preferredSailing: "", terms: "", remarks: "", onBehalfOf: "", msdsUrl: "", msdsName: "", targetRate: "", targetCurrency: "USD" };
 const readAsDataUrl = (f) => new Promise((ok, no) => { const r = new FileReader(); r.onload = () => ok(r.result); r.onerror = no; r.readAsDataURL(f); });
 
 function Form({ account, ports, onSaved, onClose }) {
@@ -35,6 +35,12 @@ function Form({ account, ports, onSaved, onClose }) {
         <Field label="Product"><input style={INPUT} value={d.product} onChange={set("product")} placeholder="Trade name" /></Field>
         <Field label="UN number"><input style={INPUT} value={d.unNo} onChange={set("unNo")} placeholder="UN1993 or Non-DG" /></Field>
         <Field label="IMO class"><input style={INPUT} value={d.imoClass} onChange={set("imoClass")} placeholder="3" /></Field>
+        <Field label="Target rate (per tank)" hint="Your expectation, so Genesis can quote accordingly">
+          <div style={{ display: "flex", gap: 6 }}>
+            <select style={{ ...INPUT, width: 90 }} value={d.targetCurrency} onChange={set("targetCurrency")}>{["USD", "AED", "EUR", "INR"].map((c) => <option key={c}>{c}</option>)}</select>
+            <input style={INPUT} inputMode="decimal" value={d.targetRate} onChange={set("targetRate")} placeholder="e.g. 1850" />
+          </div>
+        </Field>
         <Field label="Preferred sailing / vessel"><input style={INPUT} value={d.preferredSailing} onChange={set("preferredSailing")} placeholder="e.g. first week of December" /></Field>
         <Field label="Terms"><select style={INPUT} value={d.terms} onChange={set("terms")}><option value="">—</option>{["PIER TO PIER", "DOOR TO PIER", "PIER TO DOOR", "DOOR TO DOOR", "LEASE"].map((t) => <option key={t}>{t}</option>)}</select></Field>
         <Field label="MSDS (PDF)" hint="Safety data sheet of the product - needed for DG cargo">
@@ -73,14 +79,14 @@ export default function BookingRequestsView({ account }) {
       {rows && rows.length > 0 && (
         <div style={{ ...CARD, padding: 0, overflowX: "auto" }}>
           <table style={{ minWidth: 900 }}>
-            <thead><tr><th>Sent</th><th>Status</th><th>Route</th><th>Product</th><th>Tanks</th><th>Cargo ready</th>{account.kind === "AGENT" && <th>For</th>}<th>Genesis reply</th><th>Quote / booking</th><th /></tr></thead>
+            <thead><tr><th>Sent</th><th>Status</th><th>Route</th><th>Product</th><th>Tanks</th><th>Target rate</th><th>Cargo ready</th>{account.kind === "AGENT" && <th>For</th>}<th>Genesis reply</th><th>Quote / booking</th><th /></tr></thead>
             <tbody>{rows.map((r) => { const st = STATUS[r.status] || [r.status, MUTED]; return (
               <tr key={r.id}>
                 <td>{fmtDT(r.created_at)}<div style={{ fontSize: 11, color: MUTED }}>{r.requested_by}</div></td>
                 <td><Pill text={st[0]} color={st[1]} /></td>
                 <td className="wrap">{r.pol} → {r.pod}</td>
                 <td className="wrap">{[r.product, r.un_no, r.imo_class].filter(Boolean).join(" · ") || "—"}{r.msds_url && <div><a href={r.msds_url} target="_blank" rel="noreferrer" style={{ fontSize: 11 }}>MSDS</a></div>}</td>
-                <td style={{ textAlign: "right" }}>{r.tanks}</td><td>{fmtD(r.cargo_ready)}</td>
+                <td style={{ textAlign: "right" }}>{r.tanks}</td><td>{r.target_rate != null ? `${r.target_currency || "USD"} ${Number(r.target_rate).toLocaleString()}` : "—"}</td><td>{fmtD(r.cargo_ready)}</td>
                 {account.kind === "AGENT" && <td className="wrap">{r.on_behalf_of || "—"}</td>}
                 <td className="wrap" style={{ fontSize: 12 }}>{r.genesis_note || "—"}</td>
                 <td style={{ fontFamily: "monospace" }}>{r.job_number || r.quote_number || "—"}</td>
