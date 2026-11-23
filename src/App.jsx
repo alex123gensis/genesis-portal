@@ -5,6 +5,8 @@ import { DARK, ORANGE, MUTED, CARD, INPUT, PRIMARY, BTN, Field, Msg } from "./ui
 import ShipmentsView from "./components/ShipmentsView.jsx";
 import SailingsView from "./components/SailingsView.jsx";
 import AccountView from "./components/AccountView.jsx";
+import BookingRequestsView from "./components/BookingRequestsView.jsx";
+import RegionView from "./components/RegionView.jsx";
 import ChangePassword from "./components/ChangePassword.jsx";
 
 export const hostFace = () => (/^agent/i.test(typeof window !== "undefined" ? window.location.hostname : "") ? "AGENT" : "CUSTOMER");
@@ -69,7 +71,7 @@ export default function App() {
   const account = me && me.account;
   const forced = me && me.user && me.user.must_change_password;
   const isAgent = !!(account && account.kind === "AGENT");
-  const view = tab || (isAgent ? "sailings" : "shipments");
+  const view = tab || (isAgent ? "region" : "shipments");
 
   return (
     <div style={{ minHeight: "100vh" }}>
@@ -82,9 +84,10 @@ export default function App() {
           </div>
           {account && !forced && (
             <nav className="nav" style={{ width: "100%", display: "flex", gap: 2 }}>
+              {isAgent && <button className={view === "region" ? "on" : ""} onClick={() => setTab("region")}>Tanks in my region</button>}
               {isAgent && <button className={view === "sailings" ? "on" : ""} onClick={() => setTab("sailings")}>Sailing schedule</button>}
               <button className={view === "shipments" ? "on" : ""} onClick={() => setTab("shipments")}>{isAgent ? "Bookings" : "My shipments"}</button>
-              {!isAgent && <button className={view === "sailings" ? "on" : ""} onClick={() => setTab("sailings")}>Sailing schedule</button>}
+              <button className={view === "requests" ? "on" : ""} onClick={() => setTab("requests")}>Booking requests</button>
               <button className={view === "account" ? "on" : ""} onClick={() => setTab("account")}>Account</button>
             </nav>
           )}
@@ -96,7 +99,9 @@ export default function App() {
         {me && !account && <div style={{ ...CARD, maxWidth: 520, margin: "40px auto" }}><div style={{ fontWeight: 800, marginBottom: 6 }}>No company linked to this login</div><div style={{ fontSize: 13, color: MUTED }}>Your e-mail is not linked to a customer account yet. Please contact your Genesis representative.</div><button style={{ ...BTN, marginTop: 12 }} onClick={signOut}>Sign out</button></div>}
         {account && forced && <ChangePassword forced onDone={loadMe} />}
         {account && !forced && view === "shipments" && <ShipmentsView account={account} />}
-        {account && !forced && view === "sailings" && <SailingsView account={account} />}
+        {account && !forced && view === "sailings" && isAgent && <SailingsView account={account} />}
+        {account && !forced && view === "region" && isAgent && <RegionView account={account} />}
+        {account && !forced && view === "requests" && <BookingRequestsView account={account} />}
         {account && !forced && view === "account" && <AccountView me={me} onChanged={loadMe} />}
       </main>
       <footer style={{ textAlign: "center", fontSize: 11, color: MUTED, padding: 20 }}>Genesis Chemical Tank Containers LLC · Dubai · Data as recorded in the Genesis Tank App</footer>

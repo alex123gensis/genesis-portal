@@ -9,7 +9,7 @@ export const TEMPLATE_COLUMNS = [
   ["POL", "pol", "Nhava Sheva"], ["POD", "pod", "Jebel Ali"], ["Via", "via", ""],
   ["ETD at POL", "etd", "2026-12-02"], ["ETA at POD", "eta", "2026-12-06"],
   ["Gate-in opens", "gate_open", "2026-11-27 09:00"], ["Gate-in cut-off", "gate_cutoff", "2026-11-30 17:00"], ["Document cut-off", "doc_cutoff", "2026-11-29 17:00"],
-  ["DG acceptance", "dg", "Accepted"], ["Space", "space", "Offered"], ["DG notes", "dg_notes", ""], ["Remarks", "notes", ""],
+  ["DG acceptance", "dg", "Accepted"], ["Space", "space", "Offered"], ["DG notes", "dg_notes", ""], ["Slot rate (USD per tank)", "slot_rate", "USD 1850"], ["DG surcharge (USD)", "dg_surcharge", ""], ["Remarks", "notes", ""],
 ];
 const DG = ["Not stated", "Accepted", "Restricted", "Not accepted"];
 const SPACE = ["Offered", "Requested", "Awaiting", "Confirmed", "Full", "Closed"];
@@ -26,6 +26,7 @@ export function downloadTemplate() {
     ["One row per vessel option. Vessel, POL, POD and ETD are required; the rest is optional."],
     ["Dates: 2026-12-02 or 02/12/2026 or an Excel date cell. Times: 2026-11-30 17:00 (local port time)."],
     ["DG acceptance: Accepted, Restricted, Not accepted or Not stated. Space: Offered, Requested, Awaiting, Confirmed, Full or Closed."],
+    ["Slot rate and DG surcharge are seen by Genesis only, never by customers."],
     ["Delete the example row before uploading. Rows with problems are shown before saving and can be fixed in the file."],
   ]);
   notes["!cols"] = [{ wch: 110 }];
@@ -36,7 +37,7 @@ export function downloadTemplate() {
 const norm = (s) => String(s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
 const HEADER_ALIASES = { vesselname: "vessel", voy: "voyage", voyageno: "voyage", line: "operator", carrier: "operator", portofloading: "pol", portofdischarge: "pod", transhipment: "via", transshipment: "via",
   etd: "etd", etdatpol: "etd", eta: "eta", etaatpod: "eta", gateinopens: "gate_open", gateopen: "gate_open", gatein: "gate_open", gateincutoff: "gate_cutoff", cutoff: "gate_cutoff", gatecutoff: "gate_cutoff",
-  documentcutoff: "doc_cutoff", doccutoff: "doc_cutoff", sicutoff: "doc_cutoff", dg: "dg", dgacceptance: "dg", space: "space", dgnotes: "dg_notes", remarks: "notes", notes: "notes" };
+  documentcutoff: "doc_cutoff", doccutoff: "doc_cutoff", sicutoff: "doc_cutoff", dg: "dg", dgacceptance: "dg", space: "space", dgnotes: "dg_notes", remarks: "notes", notes: "notes", slotrate: "slot_rate", slotrateusdpertank: "slot_rate", rate: "slot_rate", dgsurcharge: "dg_surcharge", dgsurchargeusd: "dg_surcharge" };
 function mapHeader(h) {
   const n = norm(h);
   for (const [label, key] of TEMPLATE_COLUMNS) if (norm(label) === n) return key;
@@ -77,7 +78,8 @@ export function parseWorkbook(buf) {
     const row = {}; const errs = [];
     keys.forEach((k, c) => { if (k) row[k] = r[c]; });
     const out = { vessel: String(row.vessel || "").trim(), voyage: String(row.voyage || "").trim(), operator: String(row.operator || "").trim(), service: String(row.service || "").trim(),
-      pol: String(row.pol || "").trim(), pod: String(row.pod || "").trim(), via: String(row.via || "").trim(), dg_notes: String(row.dg_notes || "").trim(), notes: String(row.notes || "").trim() };
+      pol: String(row.pol || "").trim().toUpperCase(), pod: String(row.pod || "").trim().toUpperCase(), via: String(row.via || "").trim(), dg_notes: String(row.dg_notes || "").trim(), notes: String(row.notes || "").trim(),
+      slot_rate: String(row.slot_rate ?? "").trim(), dg_surcharge: String(row.dg_surcharge ?? "").trim() };
     if (!out.vessel) errs.push("vessel missing"); if (!out.pol) errs.push("POL missing"); if (!out.pod) errs.push("POD missing");
     out.etd = toDate(row.etd); if (!out.etd) errs.push("ETD missing or not a date");
     out.eta = toDate(row.eta); if (out.eta === null) errs.push("ETA not a date");

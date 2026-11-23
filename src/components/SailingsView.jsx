@@ -1,16 +1,17 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "../api.js";
 import SailingsUpload from "./SailingsUpload.jsx";
+import PortSelect, { usePorts } from "./PortSelect.jsx";
 import { CARD, INPUT, BTN, PRIMARY, DANGER, MUTED, ORANGE, GREEN, RED, AMBER, LINE, Field, Pill, Msg, Empty, fmtD, fmtDT, downloadCsv } from "../ui.jsx";
 
 const DG = ["Not stated", "Accepted", "Restricted", "Not accepted"];
 const SPACE = ["Offered", "Requested", "Awaiting", "Confirmed", "Full", "Closed"];
 const toLocal = (iso) => { if (!iso) return ""; const d = new Date(iso); if (isNaN(d)) return ""; const p = (n) => String(n).padStart(2, "0"); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`; };
 const toIso = (local) => { if (!local) return ""; const d = new Date(local); return isNaN(d) ? "" : d.toISOString(); };
-const EMPTY = { vessel: "", voyage: "", operator: "", service: "", pol: "", pod: "", via: "", etd: "", eta: "", gate_open: "", gate_cutoff: "", doc_cutoff: "", dg: "Accepted", space: "Offered", dg_notes: "", notes: "" };
+const EMPTY = { vessel: "", voyage: "", operator: "", service: "", pol: "", pod: "", via: "", etd: "", eta: "", gate_open: "", gate_cutoff: "", doc_cutoff: "", dg: "Accepted", space: "Offered", dg_notes: "", notes: "", slot_rate: "", dg_surcharge: "" };
 const daysTo = (d) => (d ? Math.round((new Date(d + "T00:00:00") - new Date(new Date().toDateString())) / 86400000) : null);
 
-function Editor({ value, ports, onSaved, onClose }) {
+function Editor({ value, ports, portMaster, onSaved, onClose }) {
   const [d, setD] = useState(() => ({ ...EMPTY, ...value, eta: value.eta || "", gate_open: toLocal(value.gate_open), gate_cutoff: toLocal(value.gate_cutoff), doc_cutoff: toLocal(value.doc_cutoff) }));
   const [busy, setBusy] = useState(false); const [err, setErr] = useState(null);
   const set = (k) => (e) => setD((p) => ({ ...p, [k]: e.target.value }));
@@ -34,8 +35,8 @@ function Editor({ value, ports, onSaved, onClose }) {
         <Field label="Voyage"><input style={INPUT} value={d.voyage} onChange={set("voyage")} /></Field>
         <Field label="Operator / line"><input style={INPUT} value={d.operator} onChange={set("operator")} /></Field>
         <Field label="Service"><input style={INPUT} value={d.service} onChange={set("service")} /></Field>
-        <Field label="Port of loading (POL)"><input style={INPUT} list="ports" value={d.pol} onChange={set("pol")} required /></Field>
-        <Field label="Port of discharge (POD)"><input style={INPUT} list="ports" value={d.pod} onChange={set("pod")} required /></Field>
+        <Field label="Port of loading (POL)"><PortSelect ports={portMaster} value={d.pol} onChange={(v) => setD({ ...d, pol: v })} required /></Field>
+        <Field label="Port of discharge (POD)"><PortSelect ports={portMaster} value={d.pod} onChange={(v) => setD({ ...d, pod: v })} required /></Field>
         <Field label="Via / transhipment"><input style={INPUT} value={d.via} onChange={set("via")} /></Field>
         <Field label="ETD at POL"><input style={INPUT} type="date" value={d.etd || ""} onChange={set("etd")} required /></Field>
         <Field label="ETA at POD"><input style={INPUT} type="date" value={d.eta || ""} onChange={set("eta")} /></Field>
@@ -45,6 +46,8 @@ function Editor({ value, ports, onSaved, onClose }) {
         <Field label="DG acceptance"><select style={INPUT} value={d.dg} onChange={set("dg")}>{DG.map((x) => <option key={x}>{x}</option>)}</select></Field>
         <Field label="Space"><select style={INPUT} value={d.space} onChange={set("space")}>{SPACE.map((x) => <option key={x}>{x}</option>)}</select></Field>
         <Field label="DG notes"><input style={INPUT} value={d.dg_notes} onChange={set("dg_notes")} /></Field>
+        <Field label="Slot rate (USD per tank)" hint="Seen by Genesis only - never by customers"><input style={INPUT} value={d.slot_rate || ""} onChange={set("slot_rate")} placeholder="USD 1850 / 20ft" /></Field>
+        <Field label="DG surcharge (USD)"><input style={INPUT} value={d.dg_surcharge || ""} onChange={set("dg_surcharge")} /></Field>
         <Field label="Remarks" span><input style={INPUT} value={d.notes} onChange={set("notes")} placeholder="Rotation, terms, anything customers should know" /></Field>
       </div>
       <datalist id="ports">{ports.map((p) => <option key={p} value={p} />)}</datalist>
@@ -58,7 +61,7 @@ function Editor({ value, ports, onSaved, onClose }) {
 }
 
 export default function SailingsView({ account }) {
-  const [data, setData] = useState(null); const [err, setErr] = useState(null);
+  const [data, setData] = useState(null); const [err, setErr] = useState(null); const portMaster = usePorts();
   const [pol, setPol] = useState(""); const [pod, setPod] = useState(""); const [edit, setEdit] = useState(null); const [msg, setMsg] = useState(null); const [upload, setUpload] = useState(false);
   const load = useCallback(async () => { try { setData(await api("/api/sailings")); setErr(null); } catch (e) { setErr(e.message); } }, []);
   useEffect(() => { load(); }, [load]);
@@ -86,7 +89,7 @@ export default function SailingsView({ account }) {
       <Msg text={msg} ok onClose={() => setMsg(null)} />
       {err && <Msg text={err} />}
       {upload && <SailingsUpload onDone={async (n) => { setMsg(`${n} sailing${n === 1 ? "" : "s"} saved - customers can see them now.`); await load(); }} onClose={() => setUpload(false)} />}
-      {edit && <Editor value={edit} ports={ports} onSaved={async () => { setEdit(null); setMsg("Sailing saved - customers can see it now."); await load(); }} onClose={() => setEdit(null)} />}
+      {edit && <Editor value={edit} ports={ports} portMaster={portMaster} onSaved={async () => { setEdit(null); setMsg("Sailing saved - customers can see it now."); await load(); }} onClose={() => setEdit(null)} />}
       {!data && !err && <div style={{ color: MUTED }}>Loading schedule…</div>}
       {data && !list.length && <div style={CARD}><Empty text={canEdit ? "No sailings yet. Add a vessel option with + Add sailing, or upload many at once with Upload Excel (download the template first)." : "No sailings published for this route at the moment."} /></div>}
       {data && list.length > 0 && (
@@ -105,7 +108,7 @@ export default function SailingsView({ account }) {
                   <td>{fmtDT(r.gate_open)}</td>
                   <td style={{ color: cutSoon ? RED : undefined, fontWeight: cutSoon ? 700 : 400 }}>{fmtDT(r.gate_cutoff)}</td>
                   <td className="hide-sm">{fmtDT(r.doc_cutoff)}</td>
-                  <td><Pill text={r.dg || "Not stated"} color={r.dg === "Accepted" ? GREEN : r.dg === "Not accepted" ? RED : r.dg === "Restricted" ? AMBER : MUTED} /></td>
+                  <td><Pill text={r.dg || "Not stated"} color={r.dg === "Accepted" ? GREEN : r.dg === "Not accepted" ? RED : r.dg === "Restricted" ? AMBER : MUTED} />{r.mine && r.slot_rate ? <div style={{ fontSize: 11, color: MUTED }}>slot {r.slot_rate}</div> : null}</td>
                   <td>{r.space || "—"}</td>
                   <td className="hide-sm wrap" style={{ maxWidth: 240, fontSize: 12, color: "#555" }}>{[r.dg_notes, r.notes].filter(Boolean).join(" · ") || "—"}</td>
                   {canEdit && <td>{r.mine ? <button style={{ ...BTN, padding: "4px 8px", fontSize: 11 }} onClick={(e) => { e.stopPropagation(); setEdit(r); }}>Edit</button> : null}</td>}
