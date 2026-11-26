@@ -3,6 +3,7 @@ import { api } from "../api.js";
 import BillOfLadingView from "./BillOfLadingView.jsx";
 import DocumentsView from "./DocumentsView.jsx";
 import TermsCard from "./TermsCard.jsx";
+import { ReportUpdate, EVENT } from "./TankEvents.jsx";
 import { CARD, INPUT, BTN, MUTED, ORANGE, GREEN, AMBER, BLUE, DARK, LINE, STAGE, STAGES, Pill, Tile, Msg, Empty, fmtD, downloadCsv } from "../ui.jsx";
 
 const ROLE_LABEL = { CUSTOMER: ["Customer", GREEN], POL_AGENT: ["POL agent", BLUE], POD_AGENT: ["POD agent", ORANGE] };
@@ -28,8 +29,15 @@ function Progress({ stage, small }) {
 }
 
 function Detail({ job, account, onBack }) {
-  const [tanks, setTanks] = useState(null); const [err, setErr] = useState(null); const [sub, setSub] = useState("tracking");
-  useEffect(() => { let on = true; api(`/api/tanks?job=${encodeURIComponent(job.job_number)}`).then((r) => on && setTanks(r.tanks)).catch((e) => on && setErr(e.message)); return () => { on = false; }; }, [job.job_number]);
+  const [tanks, setTanks] = useState(null); const [err, setErr] = useState(null); const [sub, setSub] = useState("tracking"); const [pending, setPending] = useState({});
+  const [nonce, setNonce] = useState(0);
+  useEffect(() => { let on = true; api(`/api/tanks?job=${encodeURIComponent(job.job_number)}`).then((r) => on && setTanks(r.tanks)).catch((e) => on && setErr(e.message)); return () => { on = false; }; }, [job.job_number, nonce]);
+  useEffect(() => {
+    if (account.kind !== "AGENT") return undefined;
+    let on = true;
+    api(`/api/events?job=${encodeURIComponent(job.job_number)}`).then((r) => { if (!on) return; const m = {}; (r.pending || []).forEach((p) => { (m[p.tank_number] = m[p.tank_number] || []).push(p); }); setPending(m); }).catch(() => {});
+    return () => { on = false; };
+  }, [job.job_number, account.kind, nonce]);
   const st = STAGE[job.stage] || [job.stage, MUTED];
   const facts = [["Booking", job.job_number], ["Route", `${job.pol || "—"} → ${job.pod || "—"}`], ["Product", job.product || "—"], ["Tanks", `${job.tank_count} of ${job.tanks_required}`],
     ["Vessel", job.vessel ? `${job.vessel}${job.voyage ? ` · ${job.voyage}` : ""}` : "—"], ["Carrier", job.carrier || "—"], ["Bill of lading", job.bl_no || "—"], ["Booked on", fmtD(job.opened_at && job.opened_at.slice(0, 10))]];
@@ -71,7 +79,7 @@ function Detail({ job, account, onBack }) {
               <tbody>{tanks.map((t) => (
                 <tr key={t.tank_number}>
                   <td style={{ fontFamily: "monospace", fontWeight: 700 }}>{t.tank_number}</td>
-                  <td><Pill stage={t.stage} /></td><td className="wrap">{t.product || "—"}</td>
+                  <td><Pill stage={t.stage} />{(pending[t.tank_number] || []).map((p) => <div key={p.event} style={{ fontSize: 10, color: AMBER, marginTop: 2 }} title="Reported by you, waiting for Genesis to apply">↻ {(EVENT[p.event] || [p.event])[0]} {fmtD(p.event_date)}</div>)}</td><td className="wrap">{t.product || "—"}</td>
                   <td>{fmtD(t.depot_out)}</td><td>{fmtD(t.gate_in)}</td><td>{fmtD(t.sailed)}</td>
                   <td>{t.arrived ? fmtD(t.arrived) : t.eta ? <span style={{ color: MUTED }}>ETA {fmtD(t.eta)}</span> : "—"}</td>
                   <td>{fmtD(t.returned)}</td><td style={{ fontFamily: "monospace" }}>{t.bl_no || "—"}</td>
@@ -79,6 +87,7 @@ function Detail({ job, account, onBack }) {
             </table>
           </div>
         )}
+        {account.kind === "AGENT" && tanks && tanks.length > 0 && <ReportUpdate job={job} tanks={tanks} onSaved={() => setNonce((n) => n + 1)} />}
       </div>}
     </div>
   );
