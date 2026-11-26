@@ -33,6 +33,13 @@ export async function rpc(fn, args) {
 
 // Who is calling: verifies the portal-project JWT, then resolves the portal user + account in the main project.
 export async function caller(req) {
+  const preview = String(req.headers["x-genesis-preview"] || "").trim();
+  if (preview) {
+    if (!/^[0-9a-f-]{36}$/i.test(preview)) return null;
+    const session = await rpc("preview_session", { p_token: preview });
+    if (!session || !session.account) return null;
+    return { email: session.user.email, session, preview: session.preview };
+  }
   const token = String(req.headers.authorization || "").replace(/^Bearer\s+/i, "");
   if (!token) return null;
   const u = await call(`${PORTAL_URL}/auth/v1/user`, { headers: { apikey: PORTAL_ANON, authorization: `Bearer ${token}` } });
@@ -52,8 +59,9 @@ export function guard(fn, { needAccount = true } = {}) {
     if (p) return send(res, 500, { error: `Portal is not configured: ${p}` });
     try {
       const who = await caller(req);
-      if (!who) return send(res, 401, { error: "Please sign in" });
+      if (!who) return send(res, 401, { error: req.headers["x-genesis-preview"] ? "This preview link has expired - open the portal again from the Tank App (CRM > Customer portal)." : "Please sign in" });
       if (needAccount && !who.session) return send(res, 403, { error: "This login is not linked to a company account. Please contact Genesis." });
+      if (who.preview && req.method !== "GET") return send(res, 403, { error: "This is a read-only preview of the portal - nothing can be changed here." });
       return await fn(req, res, who);
     } catch (e) {
       return send(res, 500, { error: e.message || String(e) });

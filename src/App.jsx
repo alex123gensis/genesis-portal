@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
 import { auth, configured, configProblem } from "./portalAuth.js";
-import { api } from "./api.js";
+import { api, previewToken, endPreview } from "./api.js";
 import { DARK, ORANGE, MUTED, CARD, INPUT, PRIMARY, BTN, Field, Msg } from "./ui.jsx";
 import ShipmentsView from "./components/ShipmentsView.jsx";
 import SailingsView from "./components/SailingsView.jsx";
 import AccountView from "./components/AccountView.jsx";
 import BookingRequestsView from "./components/BookingRequestsView.jsx";
 import RegionView from "./components/RegionView.jsx";
+import UpdatesView from "./components/TankEvents.jsx";
 import ChangePassword from "./components/ChangePassword.jsx";
 
 export const hostFace = () => (/^agent/i.test(typeof window !== "undefined" ? window.location.hostname : "") ? "AGENT" : "CUSTOMER");
@@ -50,7 +51,9 @@ export default function App() {
   const [meErr, setMeErr] = useState(null);
   const [tab, setTab] = useState(null);   // decided once the account kind is known
 
+  const preview = previewToken();
   useEffect(() => {
+    if (preview) { setSession({ user: { email: "preview" }, preview: true }); return undefined; }
     if (!configured) { setSession(null); return; }
     auth.auth.getSession().then(({ data }) => setSession(data.session || null));
     const { data: sub } = auth.auth.onAuthStateChange((_e, s) => setSession(s || null));
@@ -62,9 +65,10 @@ export default function App() {
   }, []);
   useEffect(() => { if (session) loadMe(); else setMe(null); }, [session, loadMe]);
 
-  const signOut = () => auth.auth.signOut();
+  const signOut = () => (preview ? endPreview() : auth.auth.signOut());
 
-  if (!configured || !auth) return <div style={{ padding: 40, fontFamily: "monospace", whiteSpace: "pre-wrap" }}>Portal is not configured: {configProblem}</div>;
+  if (preview && session === undefined) return <div style={{ padding: 40, color: MUTED }}>Loading preview…</div>;
+  if (!preview && (!configured || !auth)) return <div style={{ padding: 40, fontFamily: "monospace", whiteSpace: "pre-wrap" }}>Portal is not configured: {configProblem}</div>;
   if (session === undefined) return <div style={{ padding: 40, color: MUTED }}>Loading…</div>;
   if (!session) return <Login />;
 
@@ -75,12 +79,18 @@ export default function App() {
 
   return (
     <div style={{ minHeight: "100vh" }}>
+      {me && me.preview && (
+        <div style={{ background: "#B7791F", color: "#fff", fontSize: 13, fontWeight: 700, padding: "8px 16px", textAlign: "center" }}>
+          Genesis preview: you are seeing the portal exactly as <u>{account ? account.name : "this account"}</u> sees it. Read-only - nothing here can be changed. Opened by {me.preview.by}, valid until {new Date(me.preview.expires_at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}.
+          <button onClick={endPreview} style={{ marginLeft: 12, background: "#fff", color: "#B7791F", border: "none", borderRadius: 6, padding: "3px 10px", fontWeight: 800, cursor: "pointer" }}>Close preview</button>
+        </div>
+      )}
       <header style={{ background: DARK, color: "#fff" }}>
         <div style={{ maxWidth: 1180, margin: "0 auto", padding: "12px 16px 0", display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
           <Logo kind={account ? account.kind : hostFace()} />
           <div style={{ marginLeft: "auto", textAlign: "right", fontSize: 12, color: "#d8d2c6" }}>
             {account && <div style={{ fontWeight: 700, color: "#fff", fontSize: 13 }}>{account.name}</div>}
-            <div>{session.user.email} · <button onClick={signOut} style={{ background: "none", border: "none", color: ORANGE, fontWeight: 700, cursor: "pointer", padding: 0, fontSize: 12 }}>Sign out</button></div>
+            <div>{me && me.preview ? `preview by ${me.preview.by}` : session.user.email} · <button onClick={signOut} style={{ background: "none", border: "none", color: ORANGE, fontWeight: 700, cursor: "pointer", padding: 0, fontSize: 12 }}>{me && me.preview ? "Close preview" : "Sign out"}</button></div>
           </div>
           {account && !forced && (
             <nav className="nav" style={{ width: "100%", display: "flex", gap: 2 }}>
@@ -88,6 +98,7 @@ export default function App() {
               {isAgent && <button className={view === "sailings" ? "on" : ""} onClick={() => setTab("sailings")}>Sailing schedule</button>}
               <button className={view === "shipments" ? "on" : ""} onClick={() => setTab("shipments")}>{isAgent ? "Bookings" : "My shipments"}</button>
               {!isAgent && <button className={view === "sailings" ? "on" : ""} onClick={() => setTab("sailings")}>Sailing schedule</button>}
+              {isAgent && <button className={view === "updates" ? "on" : ""} onClick={() => setTab("updates")}>My updates</button>}
               <button className={view === "requests" ? "on" : ""} onClick={() => setTab("requests")}>Booking requests</button>
               <button className={view === "account" ? "on" : ""} onClick={() => setTab("account")}>Account</button>
             </nav>
@@ -103,6 +114,7 @@ export default function App() {
         {account && !forced && view === "sailings" && <SailingsView account={account} />}
         {account && !forced && view === "region" && isAgent && <RegionView account={account} />}
         {account && !forced && view === "requests" && <BookingRequestsView account={account} />}
+        {account && !forced && view === "updates" && isAgent && <UpdatesView account={account} />}
         {account && !forced && view === "account" && <AccountView me={me} onChanged={loadMe} />}
       </main>
       <footer style={{ textAlign: "center", fontSize: 11, color: MUTED, padding: 20 }}>Genesis Chemical Tank Containers LLC · Dubai · Data as recorded in the Genesis Tank App</footer>
